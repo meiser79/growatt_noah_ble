@@ -1,0 +1,22 @@
+{
+  "domain": "growatt_noah_ble",
+  "name": "Growatt NOAH (Bluetooth)",
+  "bluetooth": [
+    {
+      "service_uuid": "000000ff-0000-1000-8000-00805f9b34fb",
+      "connectable": true
+    }
+  ],
+  "codeowners": [
+    "@meiser79"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "bluetooth_adapters"
+  ],
+  "documentation": "https://github.com/meiser79/growatt_noah_ble",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/meiser79/growatt_noah_ble/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}

@@ -1,0 +1,13 @@
+Growatt NOAH (Bluetooth) for Home Assistant
+Copyright 2026 Peter Meiser
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This project is not affiliated with, endorsed by, or sponsored by Growatt New
+Energy Co., Ltd. "Growatt", "NOAH" and "ShinePhone" are trademarks of their
+respective owners. The images in custom_components/growatt_noah_ble/brand/ are
+original drawings made for this project.
+
+The Bluetooth protocol implemented in this project was determined by observing
+the communication between the ShinePhone app and a NOAH 2000 for the purpose
+of interoperability.

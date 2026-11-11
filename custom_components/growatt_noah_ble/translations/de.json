@@ -1,0 +1,115 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "NOAH auswählen",
+        "description": "Wähle den NOAH oder gib seine Bluetooth-MAC ein.",
+        "data": {
+          "address": "Gerät"
+        }
+      },
+      "settings": {
+        "title": "{name}",
+        "description": "Welche Einstellungen soll Home Assistant am NOAH sicherstellen?",
+        "data": {
+          "mqtt_host": "MQTT-Server",
+          "mqtt_port": "MQTT-Port",
+          "wifi_ssid": "WLAN-Name (SSID)",
+          "wifi_password": "WLAN-Passwort",
+          "enforce": "Einstellungen automatisch wiederherstellen",
+          "scan_interval": "Abfrageintervall"
+        },
+        "data_description": {
+          "mqtt_host": "z. B. mqtt.example.com. Leer lassen, um den Server nicht zu überwachen.",
+          "wifi_ssid": "Optional. Wird erneut gesendet, wenn der NOAH die WLAN-Verbindung verliert.",
+          "enforce": "Setzt MQTT-Server/-Port sofort zurück, wenn der NOAH sie vergessen hat, und sendet die WLAN-Daten neu, wenn er zweimal in Folge offline ist."
+        }
+      }
+    },
+    "error": {
+      "not_in_range": "NOAH ist nicht in Reichweite eines Bluetooth-Adapters oder -Proxys.",
+      "cannot_connect": "Verbindung oder Anmeldung per Bluetooth fehlgeschlagen. Ist die ShinePhone-App noch verbunden?"
+    },
+    "abort": {
+      "already_configured": "Dieser NOAH ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "mqtt_host": "MQTT-Server",
+          "mqtt_port": "MQTT-Port",
+          "wifi_ssid": "WLAN-Name (SSID)",
+          "wifi_password": "WLAN-Passwort",
+          "enforce": "Einstellungen automatisch wiederherstellen",
+          "scan_interval": "Abfrageintervall"
+        },
+        "data_description": {
+          "mqtt_host": "z. B. mqtt.example.com. Leer lassen, um den Server nicht zu überwachen.",
+          "wifi_ssid": "Optional. Wird erneut gesendet, wenn der NOAH die WLAN-Verbindung verliert.",
+          "enforce": "Setzt MQTT-Server/-Port sofort zurück, wenn der NOAH sie vergessen hat, und sendet die WLAN-Daten neu, wenn er zweimal in Folge offline ist."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "mqtt_server": {
+        "name": "MQTT-Server aktiv"
+      },
+      "mqtt_server_configured": {
+        "name": "MQTT-Server gespeichert"
+      },
+      "mqtt_port_configured": {
+        "name": "MQTT-Port gespeichert"
+      },
+      "firmware": {
+        "name": "Firmware"
+      },
+      "mac": {
+        "name": "MAC-Adresse"
+      },
+      "last_mqtt_fix": {
+        "name": "MQTT zuletzt wiederhergestellt"
+      },
+      "last_wifi_fix": {
+        "name": "WLAN zuletzt neu verbunden"
+      },
+      "last_contact": {
+        "name": "Letzter Bluetooth-Kontakt"
+      }
+    },
+    "binary_sensor": {
+      "network": {
+        "name": "Netzwerk"
+      },
+      "mqtt_problem": {
+        "name": "MQTT-Server falsch"
+      },
+      "bluetooth": {
+        "name": "Bluetooth erreichbar"
+      }
+    },
+    "button": {
+      "apply_mqtt": {
+        "name": "MQTT-Einstellungen senden"
+      },
+      "reconnect_wifi": {
+        "name": "WLAN neu verbinden"
+      },
+      "restart": {
+        "name": "Datalogger neu starten"
+      },
+      "refresh": {
+        "name": "Jetzt abfragen"
+      }
+    },
+    "switch": {
+      "polling": {
+        "name": "Bluetooth-Abfrage"
+      }
+    }
+  }
+}

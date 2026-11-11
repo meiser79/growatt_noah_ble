@@ -1,0 +1,115 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Select NOAH",
+        "description": "Select the NOAH or enter its Bluetooth MAC address.",
+        "data": {
+          "address": "Device"
+        }
+      },
+      "settings": {
+        "title": "{name}",
+        "description": "Which settings should Home Assistant keep on the NOAH?",
+        "data": {
+          "mqtt_host": "MQTT server",
+          "mqtt_port": "MQTT port",
+          "wifi_ssid": "WLAN name (SSID)",
+          "wifi_password": "WLAN password",
+          "enforce": "Restore settings automatically",
+          "scan_interval": "Poll interval"
+        },
+        "data_description": {
+          "mqtt_host": "e.g. mqtt.example.com. Leave empty to not manage the server.",
+          "wifi_ssid": "Optional. Re-sent when the NOAH loses its WLAN connection.",
+          "enforce": "Restores the MQTT server/port as soon as the NOAH forgets them and re-sends the WLAN credentials after two offline polls in a row."
+        }
+      }
+    },
+    "error": {
+      "not_in_range": "The NOAH is not in range of a Bluetooth adapter or proxy.",
+      "cannot_connect": "Bluetooth connection or authentication failed. Is the ShinePhone app still connected?"
+    },
+    "abort": {
+      "already_configured": "This NOAH is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "mqtt_host": "MQTT server",
+          "mqtt_port": "MQTT port",
+          "wifi_ssid": "WLAN name (SSID)",
+          "wifi_password": "WLAN password",
+          "enforce": "Restore settings automatically",
+          "scan_interval": "Poll interval"
+        },
+        "data_description": {
+          "mqtt_host": "e.g. mqtt.example.com. Leave empty to not manage the server.",
+          "wifi_ssid": "Optional. Re-sent when the NOAH loses its WLAN connection.",
+          "enforce": "Restores the MQTT server/port as soon as the NOAH forgets them and re-sends the WLAN credentials after two offline polls in a row."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "mqtt_server": {
+        "name": "Active MQTT server"
+      },
+      "mqtt_server_configured": {
+        "name": "Stored MQTT server"
+      },
+      "mqtt_port_configured": {
+        "name": "Stored MQTT port"
+      },
+      "firmware": {
+        "name": "Firmware"
+      },
+      "mac": {
+        "name": "MAC address"
+      },
+      "last_mqtt_fix": {
+        "name": "MQTT last restored"
+      },
+      "last_wifi_fix": {
+        "name": "WLAN last reconnected"
+      },
+      "last_contact": {
+        "name": "Last Bluetooth contact"
+      }
+    },
+    "binary_sensor": {
+      "network": {
+        "name": "Network"
+      },
+      "mqtt_problem": {
+        "name": "Wrong MQTT server"
+      },
+      "bluetooth": {
+        "name": "Bluetooth reachable"
+      }
+    },
+    "button": {
+      "apply_mqtt": {
+        "name": "Send MQTT settings"
+      },
+      "reconnect_wifi": {
+        "name": "Reconnect WLAN"
+      },
+      "restart": {
+        "name": "Restart datalogger"
+      },
+      "refresh": {
+        "name": "Poll now"
+      }
+    },
+    "switch": {
+      "polling": {
+        "name": "Bluetooth polling"
+      }
+    }
+  }
+}
