@@ -103,16 +103,6 @@ SENSORS = [
         entity_registry_enabled_default=False,
     ),
     NoahSensorDescription(
-        key="clock_offset",
-        value=lambda data: data.clock_offset,
-        device_class=SensorDeviceClass.DURATION,
-        native_unit_of_measurement=UnitOfTime.SECONDS,
-        suggested_display_precision=0,
-        state_class=SensorStateClass.MEASUREMENT,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        attributes=lambda data: {"device_clock": data.params.get(p.P_DATETIME)},
-    ),
-    NoahSensorDescription(
         key="data_interval",
         value=_int_param(p.P_DATA_INTERVAL),
         device_class=SensorDeviceClass.DURATION,
@@ -142,12 +132,6 @@ SENSORS = [
     NoahSensorDescription(
         key="last_wifi_fix",
         value=lambda data: data.last_wifi_fix,
-        device_class=SensorDeviceClass.TIMESTAMP,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    NoahSensorDescription(
-        key="last_clock_fix",
-        value=lambda data: data.last_clock_fix,
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),

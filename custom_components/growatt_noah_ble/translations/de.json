@@ -18,14 +18,12 @@
           "wifi_ssid": "WLAN-Name (SSID)",
           "wifi_password": "WLAN-Passwort",
           "enforce": "Einstellungen automatisch wiederherstellen",
-          "sync_clock": "Geräteuhr automatisch stellen",
           "scan_interval": "Abfrageintervall"
         },
         "data_description": {
           "mqtt_host": "z. B. mqtt.example.com. Leer lassen, um den Server nicht zu überwachen.",
           "wifi_ssid": "Optional. Wird erneut gesendet, wenn der NOAH die WLAN-Verbindung verliert.",
-          "enforce": "Setzt MQTT-Server/-Port sofort zurück, wenn der NOAH sie vergessen hat, und sendet die WLAN-Daten neu, wenn er zweimal in Folge keine WLAN-Verbindung hat.",
-          "sync_clock": "Stellt die Uhr des NOAH auf die Ortszeit von Home Assistant, wenn sie mehr als 60 s abweicht."
+          "enforce": "Setzt MQTT-Server/-Port sofort zurück, wenn der NOAH sie vergessen hat, und sendet die WLAN-Daten neu, wenn er zweimal in Folge keine WLAN-Verbindung hat."
         }
       }
     },
@@ -46,14 +44,12 @@
           "wifi_ssid": "WLAN-Name (SSID)",
           "wifi_password": "WLAN-Passwort",
           "enforce": "Einstellungen automatisch wiederherstellen",
-          "sync_clock": "Geräteuhr automatisch stellen",
           "scan_interval": "Abfrageintervall"
         },
         "data_description": {
           "mqtt_host": "z. B. mqtt.example.com. Leer lassen, um den Server nicht zu überwachen.",
           "wifi_ssid": "Optional. Wird erneut gesendet, wenn der NOAH die WLAN-Verbindung verliert.",
-          "enforce": "Setzt MQTT-Server/-Port sofort zurück, wenn der NOAH sie vergessen hat, und sendet die WLAN-Daten neu, wenn er zweimal in Folge keine WLAN-Verbindung hat.",
-          "sync_clock": "Stellt die Uhr des NOAH auf die Ortszeit von Home Assistant, wenn sie mehr als 60 s abweicht."
+          "enforce": "Setzt MQTT-Server/-Port sofort zurück, wenn der NOAH sie vergessen hat, und sendet die WLAN-Daten neu, wenn er zweimal in Folge keine WLAN-Verbindung hat."
         }
       }
     }
@@ -96,9 +92,6 @@
       "sdk_version": {
         "name": "SDK-Version"
       },
-      "clock_offset": {
-        "name": "Uhrabweichung"
-      },
       "data_interval": {
         "name": "Sendeintervall"
       },
@@ -110,9 +103,6 @@
       },
       "last_wifi_fix": {
         "name": "WLAN zuletzt neu verbunden"
-      },
-      "last_clock_fix": {
-        "name": "Uhr zuletzt gestellt"
       },
       "last_contact": {
         "name": "Letzter Bluetooth-Kontakt"

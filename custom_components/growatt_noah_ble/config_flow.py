@@ -30,7 +30,6 @@ from .const import (
     CONF_MQTT_HOST,
     CONF_MQTT_PORT,
     CONF_SCAN_INTERVAL,
-    CONF_SYNC_CLOCK,
     CONF_WIFI_PASSWORD,
     CONF_WIFI_SSID,
     DEFAULT_MQTT_PORT,
@@ -54,7 +53,6 @@ def _settings_schema(defaults: dict[str, Any]) -> vol.Schema:
                 TextSelectorConfig(type=TextSelectorType.PASSWORD)
             ),
             vol.Required(CONF_ENFORCE, default=defaults.get(CONF_ENFORCE, True)): bool,
-            vol.Required(CONF_SYNC_CLOCK, default=defaults.get(CONF_SYNC_CLOCK, True)): bool,
             vol.Required(
                 CONF_SCAN_INTERVAL, default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
             ): NumberSelector(

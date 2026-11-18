@@ -26,12 +26,10 @@ from .const import (
     CONF_MQTT_HOST,
     CONF_MQTT_PORT,
     CONF_SCAN_INTERVAL,
-    CONF_SYNC_CLOCK,
     CONF_WIFI_PASSWORD,
     CONF_WIFI_SSID,
     DEFAULT_MQTT_PORT,
     DEFAULT_SCAN_INTERVAL,
-    CLOCK_TOLERANCE,
     DOMAIN,
     OFFLINE_POLLS_BEFORE_RECONNECT,
     CONNECT_RETRY_DELAY,
@@ -46,8 +44,7 @@ INFO_IDS = [p.P_SERIAL, p.P_MAC, p.P_FIRMWARE, p.P_DEVICE_TYPE]
 VERSION_IDS = [p.P_MODEL_ID, p.P_HW_VERSION, p.P_SDK_VERSION]
 MQTT_IDS = [p.P_MQTT_URL, p.P_MQTT_HOST, p.P_MQTT_PORT]
 STATUS_IDS = [p.P_WIFI_STATUS, p.P_CONNECTION_STATE, p.P_WIFI_SIGNAL, p.P_WIFI_SSID]
-NETWORK_IDS = [p.P_DHCP_LEASE_0, p.P_AUTH_KEY]
-CLOCK_IDS = [p.P_DATETIME, p.P_DATA_INTERVAL]
+NETWORK_IDS = [p.P_DHCP_LEASE_0, p.P_AUTH_KEY, p.P_DATA_INTERVAL]
 
 type NoahConfigEntry = ConfigEntry[NoahCoordinator]
 
@@ -58,13 +55,10 @@ class NoahData:
     mqtt_ok: bool | None = None
     wifi_ok: bool | None = None
     server_ok: bool | None = None
-    # device clock minus HA's clock in seconds, assuming the device runs on HA's time zone
-    clock_offset: int | None = None
     reachable: bool = False
     last_contact: datetime | None = None
     last_mqtt_fix: datetime | None = None
     last_wifi_fix: datetime | None = None
-    last_clock_fix: datetime | None = None
 
 
 class NoahCoordinator(DataUpdateCoordinator[NoahData]):
@@ -138,14 +132,6 @@ class NoahCoordinator(DataUpdateCoordinator[NoahData]):
             params[p.P_CONNECTION_STATE] in p.CONNECTION_STATES_OK if p.P_CONNECTION_STATE in params else None
         )
 
-    def _update_clock_offset(self) -> None:
-        clock = dt_util.parse_datetime(self._state.params.get(p.P_DATETIME, ""))
-        if clock is None:
-            self._state.clock_offset = None
-            return
-        clock = clock.replace(tzinfo=dt_util.get_default_time_zone())
-        self._state.clock_offset = round((clock - dt_util.now()).total_seconds())
-
     def _update_device(self) -> None:
         """The entities set the device info before anything was read, so fill it in now."""
         registry = dr.async_get(self.hass)
@@ -169,19 +155,7 @@ class NoahCoordinator(DataUpdateCoordinator[NoahData]):
         self._state.params.update(await client.query(MQTT_IDS))
         self._state.params.update(await client.query(STATUS_IDS))
         self._state.params.update(await client.query(NETWORK_IDS))
-        self._state.params.update(await client.query(CLOCK_IDS))
-        self._update_clock_offset()
         self._evaluate()
-
-        # nobody else sets the clock once the NOAH no longer talks to the Growatt cloud
-        offset = self._state.clock_offset
-        if self._opts.get(CONF_SYNC_CLOCK, True) and offset is not None and abs(offset) > CLOCK_TOLERANCE:
-            _LOGGER.warning("NOAH clock is %s s off, setting it", offset)
-            try:
-                await self._apply_clock(client)
-            except NoahError as err:
-                # a refused write must not make the poll count as failed
-                _LOGGER.warning("Setting the NOAH clock failed: %s", err)
 
         if not self._opts.get(CONF_ENFORCE, True):
             return
@@ -222,14 +196,9 @@ class NoahCoordinator(DataUpdateCoordinator[NoahData]):
             _LOGGER.warning("NOAH stored WLAN name %r instead of %r", self._state.params.get(p.P_WIFI_SSID), ssid)
 
     async def _apply_clock(self, client: NoahClient) -> None:
-        # the device runs on local time, see _update_clock_offset
+        # 0x1F does not run: it reads back the last time written, so there is nothing to compare against;
+        # the datalogger's own clock starts at 2020-01-01 on every boot
         await client.set([(p.P_DATETIME, dt_util.now().strftime("%Y-%m-%d %H:%M:%S"))])
-        self._state.params.update(await client.query(CLOCK_IDS))
-        self._update_clock_offset()
-        self._state.last_clock_fix = dt_util.utcnow()
-        offset = self._state.clock_offset
-        if offset is None or abs(offset) > CLOCK_TOLERANCE:
-            _LOGGER.warning("NOAH clock is still %s s off after setting it", offset)
 
     @callback
     def _cancel_wifi_check(self) -> None:
