@@ -113,6 +113,7 @@ async def run_client(args):
         await noah.query([p.P_MQTT_URL, p.P_MQTT_HOST, p.P_MQTT_PORT])
         await noah.query([p.P_WIFI_STATUS, p.P_CONNECTION_STATE, p.P_WIFI_SIGNAL])
         await noah.query([p.P_DHCP_LEASE_0, p.P_DHCP_LEASE_1, p.P_AUTH_KEY])
+        await noah.query([p.P_DATETIME, p.P_DATA_INTERVAL, p.P_WIFI_SSID])
         if args.restart:
             await noah.client.write_gatt_char(p.CHAR_UUID, p.restart_request(), response=True)
             print("restart sent")

@@ -17,6 +17,7 @@ async def async_setup_entry(
         [
             NoahButton(c, "apply_mqtt", c.async_apply_mqtt),
             NoahButton(c, "reconnect_wifi", c.async_reconnect_wifi),
+            NoahButton(c, "sync_clock", c.async_sync_clock),
             NoahButton(c, "restart", c.async_restart, ButtonDeviceClass.RESTART),
             NoahButton(c, "refresh", c.async_request_refresh),
         ]

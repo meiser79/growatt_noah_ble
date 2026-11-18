@@ -5,6 +5,7 @@ CONF_MQTT_PORT = "mqtt_port"
 CONF_WIFI_SSID = "wifi_ssid"
 CONF_WIFI_PASSWORD = "wifi_password"
 CONF_ENFORCE = "enforce"
+CONF_SYNC_CLOCK = "sync_clock"
 CONF_SCAN_INTERVAL = "scan_interval"
 
 DEFAULT_MQTT_PORT = 8883
@@ -20,3 +21,6 @@ CONNECT_RETRY_DELAY = 60
 
 # seconds after re-sending the WLAN credentials before the network status is checked
 WIFI_CHECK_DELAY = 30
+
+# seconds the device clock may be off before it is set
+CLOCK_TOLERANCE = 60

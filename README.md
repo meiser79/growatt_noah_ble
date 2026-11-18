@@ -9,7 +9,8 @@ The integration **only handles configuration**. It does not process the measurem
 ## Features
 
 - **Enforce the MQTT server:** If the MQTT server or port differs from the configured value, both are written again immediately.
-- **Reconnect WLAN:** If the NOAH reports no network connection on two polls in a row, the WLAN name and password are sent again and the datalogger re-establishes the connection. The status is checked again 30 seconds later.
+- **Reconnect WLAN:** If the NOAH reports no WLAN connection on two polls in a row, the WLAN name and password are sent again and the datalogger re-establishes the connection. The WLAN name is read back, and the status is checked again 30 seconds later. If only the MQTT server is unreachable, the WLAN credentials are not re-sent.
+- **Set the device clock:** If the NOAH's clock is more than 60 seconds off, it is set to Home Assistant's local time. Can be switched off in the options.
 - **Poll on Bluetooth advertisement:** If the NOAH is unreachable, the integration polls as soon as it advertises again instead of waiting for the next interval. After a failed session it waits 5 minutes before the next attempt; if the connection could not be established at all (e.g. Bluetooth adapter still starting after a reboot), only 1 minute.
 - **Short connections:** Each poll takes about 4 seconds; the connection is closed afterwards.
 - **Bluetooth proxies:** Uses Home Assistant's Bluetooth stack, so it also works through ESPHome Bluetooth proxies.
@@ -45,6 +46,7 @@ The integration **only handles configuration**. It does not process the measurem
 | MQTT port | Port of the MQTT server (default 8883) |
 | WLAN name / WLAN password | Optional. Required for "Reconnect WLAN" and the automatic WLAN reconnect. |
 | Restore settings automatically | Turns automatic correction of MQTT and WLAN on or off. |
+| Set the device clock automatically | Sets the NOAH's clock when it is more than 60 s off (default on). |
 | Poll interval | Minutes between two polls (default 10) |
 
 During setup the integration connects to the NOAH once as a test. The options can be changed later via *Configure*.
@@ -59,25 +61,35 @@ During setup the integration connects to the NOAH once as a test. The options ca
 | Firmware | Sensor (diagnostic) | Datalogger firmware |
 | MAC address | Sensor (diagnostic, disabled) | WLAN MAC of the datalogger (the Bluetooth MAC is this + 2) |
 | WLAN signal | Sensor (diagnostic) | WLAN signal strength in dBm |
+| WLAN name | Sensor (diagnostic) | WLAN the NOAH is configured for |
 | IP address | Sensor (diagnostic) | IP address from the DHCP lease (`0x8B`); the raw lease string is an attribute |
 | Device type | Sensor (diagnostic) | Product from `0x0D`, e.g. NOAH 2000 (`61`) |
 | Model ID, Hardware version, SDK version | Sensors (diagnostic, disabled) | Further version information |
+| Clock offset | Sensor (diagnostic) | Device clock minus Home Assistant's clock in seconds; the device clock is an attribute |
+| Data interval | Sensor (diagnostic) | How often the NOAH publishes its data via MQTT, in seconds (5 by default) |
 | Bluetooth key | Sensor (diagnostic, disabled) | Key stored in `0x36`, see below |
 | Last Bluetooth contact | Sensor (diagnostic) | Time of the last successful poll |
 | MQTT last restored | Sensor (diagnostic) | When the integration last corrected the MQTT server |
 | WLAN last reconnected | Sensor (diagnostic) | When the WLAN credentials were last sent |
-| Network | Binary sensor | On when the NOAH reports WLAN and server connection |
+| Clock last set | Sensor (diagnostic) | When the integration last set the device clock |
+| WLAN connection | Binary sensor | On when the NOAH is connected to the WLAN router |
+| Server connection | Binary sensor | On when the NOAH is connected to its MQTT server |
 | Wrong MQTT server | Binary sensor (problem) | On when the NOAH's server or port differs from the configured one |
 | Bluetooth reachable | Binary sensor (diagnostic) | Whether the last Bluetooth poll succeeded |
 | Bluetooth polling | Switch | Off = Home Assistant no longer connects to the NOAH |
 | Send MQTT settings | Button | Writes the MQTT server and port immediately |
 | Reconnect WLAN | Button | Sends the WLAN name and password again, checks the status after 30 s |
+| Set clock | Button | Sets the device clock to Home Assistant's local time |
 | Restart datalogger | Button | Sends the restart command (see limitations) |
 | Poll now | Button | Starts a poll immediately |
 
 If the NOAH is unreachable, the sensors keep their last values. "Bluetooth reachable" and "Last Bluetooth contact" show whether the data is current.
 
-"Network" is on when `0x37 = 0` and `0x3C` is one of `16`, `3` or `4`. This is the same success check the ShinePhone app uses during network setup.
+**At night the NOAH is usually unreachable, and that is normal.** It switches itself off completely when the battery is at its lower charge limit and there is no solar power, and it switches on again at first light; nothing can wake it in between. During that time it does not advertise, so "Bluetooth reachable" is off. The first poll after it wakes up corrects the clock and anything else it lost. (The exact conditions are documented by [heliobridge](https://github.com/longsleep/heliobridge/blob/main/docs/sleep.md) for the NEXA 2000, which uses the same datalogger.)
+
+"WLAN connection" is on when `0x37 = 0`, "Server connection" when `0x3C` is one of `16`, `3` or `4`. Together they are the success check the ShinePhone app uses during network setup.
+
+"Clock offset" assumes that the NOAH's clock runs on Home Assistant's time zone.
 
 "Bluetooth key" shows the key the datalogger stores in `0x36`. On a NOAH set up with the ShinePhone app this is a 32-character token of the Growatt account, which reportedly opens the Bluetooth interface of every device of that account. The datalogger accepts the common key in addition, so the integration does not need it. The entity is disabled by default; if you enable it, the token ends up in the recorder history and in backups.
 
@@ -101,9 +113,9 @@ The entity ID may differ on your system.
 ## Limitations and known issues
 
 - **Only one Bluetooth connection at a time.** While Home Assistant is connected, nothing else can connect. Use the "Bluetooth polling" switch to pause the integration.
-- **ShinePhone app: "bound by others".** The app's network setup (WLAN, then inverter selection) authenticates with the common device key like the integration does. At the end, after binding the NOAH to the plant in the Growatt cloud, it authenticates again with a fixed 32-character token belonging to the account. The NOAH rejects this token reproducibly: it either drops the Bluetooth connection right away or replies with status `1`. Usually the app shows no error, and the setup completes anyway. Once, the app was rejected with "The current device has been bound by others" while the integration kept working; whether that is related to the rejected token is unknown. The integration is not involved in the rejection; it happens within the app's own session. According to the app, resetting WLAN/Bluetooth on the NOAH resolves the error.
+- **ShinePhone app: "bound by others".** The app's network setup (WLAN, then inverter selection) authenticates with the common device key like the integration does. At the end, after binding the NOAH to the plant in the Growatt cloud, it authenticates again with a fixed 32-character token belonging to the account. In the captures the NOAH rejected this token every time: it either dropped the Bluetooth connection right away or replied with status `1`, although the same token can be read from `0x36` later. Usually the app shows no error, and the setup completes anyway. Once, the app was rejected with "The current device has been bound by others" while the integration kept working; whether that is related to the rejected token is unknown. The integration is not involved in the rejection; it happens within the app's own session. According to the app, resetting WLAN/Bluetooth on the NOAH resolves the error.
 - **Restart command unconfirmed.** "Restart datalogger" sends parameter `0x20 = "1"`. The app uses this command for other Growatt devices; it is not confirmed that the NOAH handles it the same way.
-- **Meaning of the status values.** The values of `0x37` and `0x3C` are only known from the app's success check, not fully documented.
+- **Meaning of the status values.** `0x37` is the link to the WLAN router (`0` = connected) and `0x3C` the link to the MQTT server (`3`, `4` or `16` = connected). Other values are failure codes whose meaning is unknown.
 - **Tested with one NOAH 2000 only** (datalogger firmware 4.0.2.6).
 
 ## Troubleshooting
@@ -180,25 +192,29 @@ Right after connecting, the NOAH sends the notification `00 01 02 … 0e` once o
 
 | ID | Meaning |
 |---|---|
+| `0x04` | Data interval (seconds) |
 | `0x08` | Serial number |
 | `0x0D` | Device type (`61` = NOAH 2000, `66` GroPlug, `72` NEXA 2000, `73` AURA/NODE 5000, `83` VETA 2200) |
-| `0x10` | MAC address |
+| `0x10` | WLAN MAC address (on the NOAH the real one; the NEXA reports a masked constant here, the NOAH in `0x35`) |
 | `0x11` | MQTT server |
 | `0x12` | MQTT port |
 | `0x13` | MQTT server, the same setting as `0x11`: writing one changes what both read back |
 | `0x14` | Model ID |
 | `0x15` | Firmware |
 | `0x16` | Hardware version |
+| `0x1F` | Device clock (`YYYY-MM-DD HH:MM:SS`, local time) |
 | `0x20` | Restart (`"1"`) |
 | `0x36` | Authentication key (write); stored key (read) |
-| `0x37` | WLAN status (`0` = connected) |
+| `0x37` | Router status (`0` = connected) |
 | `0x38` | WLAN name |
 | `0x39` | WLAN password |
-| `0x3C` | Connection state (`16`, `3`, `4` = ok) |
+| `0x3C` | Server status (`16`, `3`, `4` = connected) |
 | `0x3D` | ESP-IDF version |
 | `0x4B` | WLAN scan (binary) |
 | `0x4C` | WLAN signal (dBm) |
-| `0x8B`, `0x8C` | DHCP lease |
+| `0x79` | Connection diagnostics as text; **contains the WLAN password in plain text** |
+| `0x8B` | DHCP lease as text: `-<IP>-<netmask>-<gateway>--<DNS>-…` |
+| `0x8C` | Second DHCP lease; binary on the NOAH |
 
 The ShinePhone app writes the MQTT server (`0x11`) and port (`0x12`) in separate commands and never writes `0x13`; `0x13` follows `0x11` immediately.
 
@@ -206,8 +222,10 @@ The ShinePhone app writes the MQTT server (`0x11`) and port (`0x12`) in separate
 
 | Register | Access | Meaning |
 |---|---|---|
-| `0x40`–`0x46` | read (`0x03`) | 14 ASCII characters, constant (`19211020213014` on the tested device); probably a version that the app passes on to the Growatt server |
+| `0x40`–`0x46` | read (`0x03`) | 14 ASCII characters, constant (`19211020213014` on the tested device); probably a version that the app passes on to the Growatt server, possibly `19` plus the build time `21-10-20 21:30:14` |
 | `300` (`0x012C`) | write (`0x10`) | Inverter bound to the NOAH (`ADDRESS_BIND_INVERTER_TO_NOAH` in the app), e.g. `0x0401` = APsystems EZ-1 |
+
+Input registers (function `0x04`) answer from `0` to `108`; from `109` on the NOAH returns an empty reply. So the firmware versions that GroBro reads from input registers 119/120 of the MQTT data cannot be read this way.
 
 The app fetches the list of inverter manufacturers and models, including the value for register `300`, from the Growatt server (`/noahDeviceApi/noah/getAssociatedInvManAndModelListByVersion`). For APsystems EZ-1, the 4th manufacturer and its 1st model, the value is `0x0401`; whether the high byte always is the manufacturer and the low byte the model is not confirmed.
 

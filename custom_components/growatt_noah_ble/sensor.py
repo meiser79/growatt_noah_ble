@@ -11,7 +11,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import SIGNAL_STRENGTH_DECIBELS_MILLIWATT, EntityCategory
+from homeassistant.const import SIGNAL_STRENGTH_DECIBELS_MILLIWATT, EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -35,11 +35,14 @@ def _device_type(data: NoahData) -> str | None:
     return p.DEVICE_TYPES.get(code, code)
 
 
-def _wifi_signal(data: NoahData) -> int | None:
-    try:
-        return int(data.params[p.P_WIFI_SIGNAL])
-    except (KeyError, ValueError):
-        return None
+def _int_param(param_id: int) -> Callable[[NoahData], int | None]:
+    def value(data: NoahData) -> int | None:
+        try:
+            return int(data.params[param_id])
+        except (KeyError, ValueError):
+            return None
+
+    return value
 
 
 def _ip_address(data: NoahData) -> str | None:
@@ -70,12 +73,13 @@ SENSORS = [
     ),
     NoahSensorDescription(
         key="wifi_signal",
-        value=_wifi_signal,
+        value=_int_param(p.P_WIFI_SIGNAL),
         device_class=SensorDeviceClass.SIGNAL_STRENGTH,
         native_unit_of_measurement=SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
+    NoahSensorDescription(key="wifi_ssid", value=_param(p.P_WIFI_SSID), entity_category=EntityCategory.DIAGNOSTIC),
     NoahSensorDescription(
         key="ip_address", value=_ip_address, attributes=_dhcp_lease, entity_category=EntityCategory.DIAGNOSTIC
     ),
@@ -97,6 +101,24 @@ SENSORS = [
         value=_param(p.P_SDK_VERSION),
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
+    ),
+    NoahSensorDescription(
+        key="clock_offset",
+        value=lambda data: data.clock_offset,
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        suggested_display_precision=0,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        attributes=lambda data: {"device_clock": data.params.get(p.P_DATETIME)},
+    ),
+    NoahSensorDescription(
+        key="data_interval",
+        value=_int_param(p.P_DATA_INTERVAL),
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        suggested_display_precision=0,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     # may hold a token of the Growatt account, so it is not recorded unless enabled
     NoahSensorDescription(
@@ -120,6 +142,12 @@ SENSORS = [
     NoahSensorDescription(
         key="last_wifi_fix",
         value=lambda data: data.last_wifi_fix,
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    NoahSensorDescription(
+        key="last_clock_fix",
+        value=lambda data: data.last_clock_fix,
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),

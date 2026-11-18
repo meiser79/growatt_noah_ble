@@ -53,6 +53,7 @@ FUNC_PASSTHROUGH = 0x17
 FUNC_SET = 0x18
 FUNC_QUERY = 0x19
 
+P_DATA_INTERVAL = 0x04
 P_SERIAL = 0x08
 P_DEVICE_TYPE = 0x0D
 P_MAC = 0x10
@@ -63,12 +64,15 @@ P_MQTT_URL = 0x13
 P_MODEL_ID = 0x14
 P_FIRMWARE = 0x15
 P_HW_VERSION = 0x16
+P_DATETIME = 0x1F
 P_RESTART = 0x20
 # written to authenticate; read, it returns the key the logger stores besides the common key
 P_AUTH_KEY = 0x36
+# link to the router
 P_WIFI_STATUS = 0x37
 P_WIFI_SSID = 0x38
 P_WIFI_PASSWORD = 0x39
+# link to the MQTT server
 P_CONNECTION_STATE = 0x3C
 P_SDK_VERSION = 0x3D
 P_WIFI_SCAN = 0x4B
@@ -77,6 +81,7 @@ P_DHCP_LEASE_0 = 0x8B
 P_DHCP_LEASE_1 = 0x8C
 
 PARAM_NAMES = {
+    P_DATA_INTERVAL: "data_interval",
     P_SERIAL: "serial",
     P_DEVICE_TYPE: "device_type",
     P_MAC: "mac",
@@ -86,6 +91,7 @@ PARAM_NAMES = {
     P_MODEL_ID: "model_id",
     P_FIRMWARE: "firmware",
     P_HW_VERSION: "hw_version",
+    P_DATETIME: "datetime",
     P_RESTART: "restart",
     P_AUTH_KEY: "auth_key",
     P_WIFI_STATUS: "wifi_status",

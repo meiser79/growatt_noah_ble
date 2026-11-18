@@ -18,12 +18,14 @@
           "wifi_ssid": "WLAN-Name (SSID)",
           "wifi_password": "WLAN-Passwort",
           "enforce": "Einstellungen automatisch wiederherstellen",
+          "sync_clock": "Geräteuhr automatisch stellen",
           "scan_interval": "Abfrageintervall"
         },
         "data_description": {
           "mqtt_host": "z. B. mqtt.example.com. Leer lassen, um den Server nicht zu überwachen.",
           "wifi_ssid": "Optional. Wird erneut gesendet, wenn der NOAH die WLAN-Verbindung verliert.",
-          "enforce": "Setzt MQTT-Server/-Port sofort zurück, wenn der NOAH sie vergessen hat, und sendet die WLAN-Daten neu, wenn er zweimal in Folge offline ist."
+          "enforce": "Setzt MQTT-Server/-Port sofort zurück, wenn der NOAH sie vergessen hat, und sendet die WLAN-Daten neu, wenn er zweimal in Folge keine WLAN-Verbindung hat.",
+          "sync_clock": "Stellt die Uhr des NOAH auf die Ortszeit von Home Assistant, wenn sie mehr als 60 s abweicht."
         }
       }
     },
@@ -44,12 +46,14 @@
           "wifi_ssid": "WLAN-Name (SSID)",
           "wifi_password": "WLAN-Passwort",
           "enforce": "Einstellungen automatisch wiederherstellen",
+          "sync_clock": "Geräteuhr automatisch stellen",
           "scan_interval": "Abfrageintervall"
         },
         "data_description": {
           "mqtt_host": "z. B. mqtt.example.com. Leer lassen, um den Server nicht zu überwachen.",
           "wifi_ssid": "Optional. Wird erneut gesendet, wenn der NOAH die WLAN-Verbindung verliert.",
-          "enforce": "Setzt MQTT-Server/-Port sofort zurück, wenn der NOAH sie vergessen hat, und sendet die WLAN-Daten neu, wenn er zweimal in Folge offline ist."
+          "enforce": "Setzt MQTT-Server/-Port sofort zurück, wenn der NOAH sie vergessen hat, und sendet die WLAN-Daten neu, wenn er zweimal in Folge keine WLAN-Verbindung hat.",
+          "sync_clock": "Stellt die Uhr des NOAH auf die Ortszeit von Home Assistant, wenn sie mehr als 60 s abweicht."
         }
       }
     }
@@ -74,6 +78,9 @@
       "wifi_signal": {
         "name": "WLAN-Signal"
       },
+      "wifi_ssid": {
+        "name": "WLAN-Name"
+      },
       "ip_address": {
         "name": "IP-Adresse"
       },
@@ -89,6 +96,12 @@
       "sdk_version": {
         "name": "SDK-Version"
       },
+      "clock_offset": {
+        "name": "Uhrabweichung"
+      },
+      "data_interval": {
+        "name": "Sendeintervall"
+      },
       "auth_key": {
         "name": "Bluetooth-Schlüssel"
       },
@@ -98,13 +111,19 @@
       "last_wifi_fix": {
         "name": "WLAN zuletzt neu verbunden"
       },
+      "last_clock_fix": {
+        "name": "Uhr zuletzt gestellt"
+      },
       "last_contact": {
         "name": "Letzter Bluetooth-Kontakt"
       }
     },
     "binary_sensor": {
-      "network": {
-        "name": "Netzwerk"
+      "wifi": {
+        "name": "WLAN-Verbindung"
+      },
+      "server": {
+        "name": "Serververbindung"
       },
       "mqtt_problem": {
         "name": "MQTT-Server falsch"
@@ -119,6 +138,9 @@
       },
       "reconnect_wifi": {
         "name": "WLAN neu verbinden"
+      },
+      "sync_clock": {
+        "name": "Uhr stellen"
       },
       "restart": {
         "name": "Datalogger neu starten"

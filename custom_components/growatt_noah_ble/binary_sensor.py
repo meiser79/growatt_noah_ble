@@ -15,19 +15,32 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     async_add_entities(
         [
-            NetworkSensor(coordinator, "network"),
+            WifiSensor(coordinator, "wifi"),
+            ServerSensor(coordinator, "server"),
             MqttProblemSensor(coordinator, "mqtt_problem"),
             BluetoothSensor(coordinator, "bluetooth"),
         ]
     )
 
 
-class NetworkSensor(NoahEntity, BinarySensorEntity):
+class WifiSensor(NoahEntity, BinarySensorEntity):
+    """Whether the NOAH is connected to the WLAN router."""
+
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
 
     @property
     def is_on(self) -> bool | None:
-        return self.coordinator.data.network_ok
+        return self.coordinator.data.wifi_ok
+
+
+class ServerSensor(NoahEntity, BinarySensorEntity):
+    """Whether the NOAH is connected to its MQTT server."""
+
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+    @property
+    def is_on(self) -> bool | None:
+        return self.coordinator.data.server_ok
 
 
 class MqttProblemSensor(NoahEntity, BinarySensorEntity):

@@ -18,12 +18,14 @@
           "wifi_ssid": "WLAN name (SSID)",
           "wifi_password": "WLAN password",
           "enforce": "Restore settings automatically",
+          "sync_clock": "Set the device clock automatically",
           "scan_interval": "Poll interval"
         },
         "data_description": {
           "mqtt_host": "e.g. mqtt.example.com. Leave empty to not manage the server.",
           "wifi_ssid": "Optional. Re-sent when the NOAH loses its WLAN connection.",
-          "enforce": "Restores the MQTT server/port as soon as the NOAH forgets them and re-sends the WLAN credentials after two offline polls in a row."
+          "enforce": "Restores the MQTT server/port as soon as the NOAH forgets them and re-sends the WLAN credentials if the NOAH has no WLAN connection on two polls in a row.",
+          "sync_clock": "Sets the NOAH's clock to Home Assistant's local time when it is more than 60 s off."
         }
       }
     },
@@ -44,12 +46,14 @@
           "wifi_ssid": "WLAN name (SSID)",
           "wifi_password": "WLAN password",
           "enforce": "Restore settings automatically",
+          "sync_clock": "Set the device clock automatically",
           "scan_interval": "Poll interval"
         },
         "data_description": {
           "mqtt_host": "e.g. mqtt.example.com. Leave empty to not manage the server.",
           "wifi_ssid": "Optional. Re-sent when the NOAH loses its WLAN connection.",
-          "enforce": "Restores the MQTT server/port as soon as the NOAH forgets them and re-sends the WLAN credentials after two offline polls in a row."
+          "enforce": "Restores the MQTT server/port as soon as the NOAH forgets them and re-sends the WLAN credentials if the NOAH has no WLAN connection on two polls in a row.",
+          "sync_clock": "Sets the NOAH's clock to Home Assistant's local time when it is more than 60 s off."
         }
       }
     }
@@ -74,6 +78,9 @@
       "wifi_signal": {
         "name": "WLAN signal"
       },
+      "wifi_ssid": {
+        "name": "WLAN name"
+      },
       "ip_address": {
         "name": "IP address"
       },
@@ -89,6 +96,12 @@
       "sdk_version": {
         "name": "SDK version"
       },
+      "clock_offset": {
+        "name": "Clock offset"
+      },
+      "data_interval": {
+        "name": "Data interval"
+      },
       "auth_key": {
         "name": "Bluetooth key"
       },
@@ -98,13 +111,19 @@
       "last_wifi_fix": {
         "name": "WLAN last reconnected"
       },
+      "last_clock_fix": {
+        "name": "Clock last set"
+      },
       "last_contact": {
         "name": "Last Bluetooth contact"
       }
     },
     "binary_sensor": {
-      "network": {
-        "name": "Network"
+      "wifi": {
+        "name": "WLAN connection"
+      },
+      "server": {
+        "name": "Server connection"
       },
       "mqtt_problem": {
         "name": "Wrong MQTT server"
@@ -119,6 +138,9 @@
       },
       "reconnect_wifi": {
         "name": "Reconnect WLAN"
+      },
+      "sync_clock": {
+        "name": "Set clock"
       },
       "restart": {
         "name": "Restart datalogger"

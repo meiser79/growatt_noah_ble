@@ -26,10 +26,12 @@ from .const import (
     CONF_MQTT_HOST,
     CONF_MQTT_PORT,
     CONF_SCAN_INTERVAL,
+    CONF_SYNC_CLOCK,
     CONF_WIFI_PASSWORD,
     CONF_WIFI_SSID,
     DEFAULT_MQTT_PORT,
     DEFAULT_SCAN_INTERVAL,
+    CLOCK_TOLERANCE,
     DOMAIN,
     OFFLINE_POLLS_BEFORE_RECONNECT,
     CONNECT_RETRY_DELAY,
@@ -43,8 +45,9 @@ _LOGGER = logging.getLogger(__name__)
 INFO_IDS = [p.P_SERIAL, p.P_MAC, p.P_FIRMWARE, p.P_DEVICE_TYPE]
 VERSION_IDS = [p.P_MODEL_ID, p.P_HW_VERSION, p.P_SDK_VERSION]
 MQTT_IDS = [p.P_MQTT_URL, p.P_MQTT_HOST, p.P_MQTT_PORT]
-STATUS_IDS = [p.P_WIFI_STATUS, p.P_CONNECTION_STATE, p.P_WIFI_SIGNAL]
+STATUS_IDS = [p.P_WIFI_STATUS, p.P_CONNECTION_STATE, p.P_WIFI_SIGNAL, p.P_WIFI_SSID]
 NETWORK_IDS = [p.P_DHCP_LEASE_0, p.P_AUTH_KEY]
+CLOCK_IDS = [p.P_DATETIME, p.P_DATA_INTERVAL]
 
 type NoahConfigEntry = ConfigEntry[NoahCoordinator]
 
@@ -53,11 +56,15 @@ type NoahConfigEntry = ConfigEntry[NoahCoordinator]
 class NoahData:
     params: dict[int, str] = field(default_factory=dict)
     mqtt_ok: bool | None = None
-    network_ok: bool | None = None
+    wifi_ok: bool | None = None
+    server_ok: bool | None = None
+    # device clock minus HA's clock in seconds, assuming the device runs on HA's time zone
+    clock_offset: int | None = None
     reachable: bool = False
     last_contact: datetime | None = None
     last_mqtt_fix: datetime | None = None
     last_wifi_fix: datetime | None = None
+    last_clock_fix: datetime | None = None
 
 
 class NoahCoordinator(DataUpdateCoordinator[NoahData]):
@@ -124,10 +131,20 @@ class NoahCoordinator(DataUpdateCoordinator[NoahData]):
         self._state.mqtt_ok = desired is None or (
             params.get(p.P_MQTT_URL) == desired[0] and params.get(p.P_MQTT_PORT) == desired[1]
         )
-        self._state.network_ok = p.P_WIFI_STATUS in params and (
-            params.get(p.P_WIFI_STATUS) == p.WIFI_STATUS_OK
-            and params.get(p.P_CONNECTION_STATE) in p.CONNECTION_STATES_OK
+        self._state.wifi_ok = (
+            params[p.P_WIFI_STATUS] == p.WIFI_STATUS_OK if p.P_WIFI_STATUS in params else None
         )
+        self._state.server_ok = (
+            params[p.P_CONNECTION_STATE] in p.CONNECTION_STATES_OK if p.P_CONNECTION_STATE in params else None
+        )
+
+    def _update_clock_offset(self) -> None:
+        clock = dt_util.parse_datetime(self._state.params.get(p.P_DATETIME, ""))
+        if clock is None:
+            self._state.clock_offset = None
+            return
+        clock = clock.replace(tzinfo=dt_util.get_default_time_zone())
+        self._state.clock_offset = round((clock - dt_util.now()).total_seconds())
 
     def _update_device(self) -> None:
         """The entities set the device info before anything was read, so fill it in now."""
@@ -152,7 +169,19 @@ class NoahCoordinator(DataUpdateCoordinator[NoahData]):
         self._state.params.update(await client.query(MQTT_IDS))
         self._state.params.update(await client.query(STATUS_IDS))
         self._state.params.update(await client.query(NETWORK_IDS))
+        self._state.params.update(await client.query(CLOCK_IDS))
+        self._update_clock_offset()
         self._evaluate()
+
+        # nobody else sets the clock once the NOAH no longer talks to the Growatt cloud
+        offset = self._state.clock_offset
+        if self._opts.get(CONF_SYNC_CLOCK, True) and offset is not None and abs(offset) > CLOCK_TOLERANCE:
+            _LOGGER.warning("NOAH clock is %s s off, setting it", offset)
+            try:
+                await self._apply_clock(client)
+            except NoahError as err:
+                # a refused write must not make the poll count as failed
+                _LOGGER.warning("Setting the NOAH clock failed: %s", err)
 
         if not self._opts.get(CONF_ENFORCE, True):
             return
@@ -166,9 +195,10 @@ class NoahCoordinator(DataUpdateCoordinator[NoahData]):
             )
             await self._apply_mqtt(client)
 
-        self._offline_polls = 0 if self._state.network_ok else self._offline_polls + 1
+        # only the link to the router is fixed by re-sending the WLAN credentials, not an unreachable server
+        self._offline_polls = 0 if self._state.wifi_ok is not False else self._offline_polls + 1
         if self._offline_polls >= OFFLINE_POLLS_BEFORE_RECONNECT and self._wifi_credentials():
-            _LOGGER.warning("NOAH has had no network for %s polls, re-sending WLAN credentials", self._offline_polls)
+            _LOGGER.warning("NOAH has had no WLAN for %s polls, re-sending WLAN credentials", self._offline_polls)
             self._offline_polls = 0
             await self._apply_wifi(client)
 
@@ -187,6 +217,19 @@ class NoahCoordinator(DataUpdateCoordinator[NoahData]):
         # the status is only meaningful once the logger had time to reconnect
         self._cancel_wifi_check()
         self._unsub_wifi_check = async_call_later(self.hass, WIFI_CHECK_DELAY, self._async_wifi_check)
+        self._state.params.update(await client.query([p.P_WIFI_SSID]))
+        if self._state.params.get(p.P_WIFI_SSID) != ssid:
+            _LOGGER.warning("NOAH stored WLAN name %r instead of %r", self._state.params.get(p.P_WIFI_SSID), ssid)
+
+    async def _apply_clock(self, client: NoahClient) -> None:
+        # the device runs on local time, see _update_clock_offset
+        await client.set([(p.P_DATETIME, dt_util.now().strftime("%Y-%m-%d %H:%M:%S"))])
+        self._state.params.update(await client.query(CLOCK_IDS))
+        self._update_clock_offset()
+        self._state.last_clock_fix = dt_util.utcnow()
+        offset = self._state.clock_offset
+        if offset is None or abs(offset) > CLOCK_TOLERANCE:
+            _LOGGER.warning("NOAH clock is still %s s off after setting it", offset)
 
     @callback
     def _cancel_wifi_check(self) -> None:
@@ -250,6 +293,9 @@ class NoahCoordinator(DataUpdateCoordinator[NoahData]):
         if not self._wifi_credentials():
             raise HomeAssistantError("No WLAN credentials configured")
         await self._run_action(self._apply_wifi)
+
+    async def async_sync_clock(self) -> None:
+        await self._run_action(self._apply_clock)
 
     async def async_restart(self) -> None:
         await self._run_action(lambda client: client.restart())
