@@ -54,36 +54,57 @@ FUNC_SET = 0x18
 FUNC_QUERY = 0x19
 
 P_SERIAL = 0x08
-P_PARAM_13 = 0x0D
+P_DEVICE_TYPE = 0x0D
 P_MAC = 0x10
+# 0x11 and 0x13 are one setting under two ids: writing either changes what both read back
 P_MQTT_HOST = 0x11
 P_MQTT_PORT = 0x12
-P_MQTT_HOST_ACTIVE = 0x13
+P_MQTT_URL = 0x13
+P_MODEL_ID = 0x14
 P_FIRMWARE = 0x15
+P_HW_VERSION = 0x16
 P_RESTART = 0x20
+# written to authenticate; read, it returns the key the logger stores besides the common key
 P_AUTH_KEY = 0x36
 P_WIFI_STATUS = 0x37
 P_WIFI_SSID = 0x38
 P_WIFI_PASSWORD = 0x39
 P_CONNECTION_STATE = 0x3C
+P_SDK_VERSION = 0x3D
 P_WIFI_SCAN = 0x4B
+P_WIFI_SIGNAL = 0x4C
+P_DHCP_LEASE_0 = 0x8B
+P_DHCP_LEASE_1 = 0x8C
 
 PARAM_NAMES = {
     P_SERIAL: "serial",
-    P_PARAM_13: "param_13",
+    P_DEVICE_TYPE: "device_type",
     P_MAC: "mac",
     P_MQTT_HOST: "mqtt_host",
     P_MQTT_PORT: "mqtt_port",
-    P_MQTT_HOST_ACTIVE: "mqtt_host_active",
+    P_MQTT_URL: "mqtt_url",
+    P_MODEL_ID: "model_id",
     P_FIRMWARE: "firmware",
+    P_HW_VERSION: "hw_version",
     P_RESTART: "restart",
     P_AUTH_KEY: "auth_key",
     P_WIFI_STATUS: "wifi_status",
     P_WIFI_SSID: "wifi_ssid",
     P_WIFI_PASSWORD: "wifi_password",
     P_CONNECTION_STATE: "connection_state",
+    P_SDK_VERSION: "sdk_version",
     P_WIFI_SCAN: "wifi_scan",
+    P_WIFI_SIGNAL: "wifi_signal",
+    P_DHCP_LEASE_0: "dhcp_lease_0",
+    P_DHCP_LEASE_1: "dhcp_lease_1",
 }
+
+# value of P_DEVICE_TYPE, also sent in the advertisement ("G:61#...")
+DEVICE_TYPES = {"61": "NOAH 2000", "66": "GroPlug", "72": "NEXA 2000", "73": "AURA/NODE 5000", "83": "VETA 2200"}
+
+
+def model_name(device_type: str | None) -> str:
+    return DEVICE_TYPES.get(device_type, "Unknown")
 
 # SetUpNetProgressActivity treats the network setup as successful with these values
 WIFI_STATUS_OK = "0"
@@ -201,6 +222,37 @@ def restart_request() -> bytes:
     return set_request([(P_RESTART, "1")])
 
 
+MODBUS_READ_HOLDING = 0x03
+MODBUS_READ_INPUT = 0x04
+
+
+
+def modbus_read_request(function: int, start: int, count: int) -> bytes:
+    """0x17 passthrough of a Modbus RTU read to unit 1; the inner CRC is little endian as usual for Modbus."""
+    pdu = struct.pack(">BBHH", 1, function, start, count)
+    pdu += struct.pack("<H", crc16_modbus(pdu))
+    return build_frame(FUNC_PASSTHROUGH, APP_SERIAL + struct.pack(">H", len(pdu)) + pdu)
+
+
+def parse_modbus_read_reply(data: bytes) -> list[int]:
+    """Return the register values of a 0x17 reply to a Modbus read."""
+    if len(data) < 12:
+        raise ProtocolError("short Modbus reply")
+    n = struct.unpack(">H", data[10:12])[0]
+    pdu = data[12 : 12 + n]
+    if not pdu:
+        raise ProtocolError("empty reply, the unit behind the datalogger did not answer")
+    if len(pdu) < 5 or crc16_modbus(pdu[:-2]) != struct.unpack("<H", pdu[-2:])[0]:
+        raise ProtocolError(f"bad Modbus reply {pdu.hex()}")
+    if pdu[1] & 0x80:
+        raise ProtocolError(f"Modbus exception {pdu[2]}")
+    size = pdu[2]
+    if size % 2 or 3 + size + 2 != len(pdu):
+        raise ProtocolError(f"bad Modbus reply {pdu.hex()}")
+    return list(struct.unpack(f">{size // 2}H", pdu[3 : 3 + size]))
+
+
+
 def parse_set_reply(data: bytes) -> int:
     """Return the status byte of a 0x18 reply (0 = ok)."""
     if len(data) < 13:
@@ -215,13 +267,24 @@ def parse_query_reply(data: bytes) -> tuple[int, dict[int, bytes]]:
     return data[12], dict(parse_tlvs(data[13:]))
 
 
-def describe(proto: int, func: int, data: bytes) -> str:
+# values not to be logged; the common key is public and stays readable
+SECRET_PARAMS = (P_AUTH_KEY, P_WIFI_PASSWORD)
+
+
+def _item(param_id: int, value: bytes, redact: bool) -> str:
+    name = PARAM_NAMES.get(param_id, hex(param_id))
+    if redact and param_id in SECRET_PARAMS and value != AUTH_KEY:
+        return f"{name}=<{len(value)} bytes redacted>"
+    return f"{name}={value!r}"
+
+
+def describe(proto: int, func: int, data: bytes, redact: bool = True) -> str:
     serial = data[:10].decode(errors="replace")
     rest = data[10:]
     d = "app->dev" if proto == PROTO_APP else "dev->app"
     if func == FUNC_SET and proto == PROTO_APP:
         count = struct.unpack(">H", rest[:2])[0]
-        items = ", ".join(f"{PARAM_NAMES.get(i, hex(i))}={v!r}" for i, v in parse_tlvs(rest[4:]))
+        items = ", ".join(_item(i, v, redact) for i, v in parse_tlvs(rest[4:]))
         return f"{d} SET [{count}] {items}"
     if func == FUNC_SET:
         count, status = struct.unpack(">HB", rest[:3])
@@ -232,7 +295,7 @@ def describe(proto: int, func: int, data: bytes) -> str:
         return f"{d} QUERY " + ", ".join(PARAM_NAMES.get(i, hex(i)) for i in ids)
     if func == FUNC_QUERY:
         status, values = parse_query_reply(data)
-        items = ", ".join(f"{PARAM_NAMES.get(i, hex(i))}={v!r}" for i, v in values.items())
+        items = ", ".join(_item(i, v, redact) for i, v in values.items())
         return f"{d} QUERY-RSP sn={serial} status={status} {items}"
     if func == FUNC_PASSTHROUGH:
         n = struct.unpack(">H", rest[:2])[0]

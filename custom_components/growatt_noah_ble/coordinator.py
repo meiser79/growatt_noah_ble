@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -39,9 +40,11 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 # the app never asks for more than four parameters at once, so neither do we
-INFO_IDS = [p.P_SERIAL, p.P_MAC, p.P_FIRMWARE]
-MQTT_IDS = [p.P_MQTT_HOST_ACTIVE, p.P_MQTT_HOST, p.P_MQTT_PORT]
-STATUS_IDS = [p.P_WIFI_STATUS, p.P_CONNECTION_STATE]
+INFO_IDS = [p.P_SERIAL, p.P_MAC, p.P_FIRMWARE, p.P_DEVICE_TYPE]
+VERSION_IDS = [p.P_MODEL_ID, p.P_HW_VERSION, p.P_SDK_VERSION]
+MQTT_IDS = [p.P_MQTT_URL, p.P_MQTT_HOST, p.P_MQTT_PORT]
+STATUS_IDS = [p.P_WIFI_STATUS, p.P_CONNECTION_STATE, p.P_WIFI_SIGNAL]
+NETWORK_IDS = [p.P_DHCP_LEASE_0, p.P_AUTH_KEY]
 
 type NoahConfigEntry = ConfigEntry[NoahCoordinator]
 
@@ -119,18 +122,36 @@ class NoahCoordinator(DataUpdateCoordinator[NoahData]):
         params = self._state.params
         desired = self._desired_mqtt()
         self._state.mqtt_ok = desired is None or (
-            params.get(p.P_MQTT_HOST_ACTIVE) == desired[0] and params.get(p.P_MQTT_PORT) == desired[1]
+            params.get(p.P_MQTT_URL) == desired[0] and params.get(p.P_MQTT_PORT) == desired[1]
         )
         self._state.network_ok = p.P_WIFI_STATUS in params and (
             params.get(p.P_WIFI_STATUS) == p.WIFI_STATUS_OK
             and params.get(p.P_CONNECTION_STATE) in p.CONNECTION_STATES_OK
         )
 
+    def _update_device(self) -> None:
+        """The entities set the device info before anything was read, so fill it in now."""
+        registry = dr.async_get(self.hass)
+        device = registry.async_get_device(connections={(dr.CONNECTION_BLUETOOTH, self.address)})
+        if device is None:
+            return
+        params = self._state.params
+        registry.async_update_device(
+            device.id,
+            model=p.model_name(params.get(p.P_DEVICE_TYPE)),
+            serial_number=params.get(p.P_SERIAL),
+            sw_version=params.get(p.P_FIRMWARE),
+            hw_version=params.get(p.P_HW_VERSION),
+        )
+
     async def _poll(self, client: NoahClient) -> None:
         if p.P_SERIAL not in self._state.params:
             self._state.params.update(await client.query(INFO_IDS))
+            self._state.params.update(await client.query(VERSION_IDS))
+            self._update_device()
         self._state.params.update(await client.query(MQTT_IDS))
         self._state.params.update(await client.query(STATUS_IDS))
+        self._state.params.update(await client.query(NETWORK_IDS))
         self._evaluate()
 
         if not self._opts.get(CONF_ENFORCE, True):
@@ -139,7 +160,7 @@ class NoahCoordinator(DataUpdateCoordinator[NoahData]):
         if not self._state.mqtt_ok:
             _LOGGER.warning(
                 "NOAH uses MQTT server %s:%s, restoring %s:%s",
-                self._state.params.get(p.P_MQTT_HOST_ACTIVE),
+                self._state.params.get(p.P_MQTT_URL),
                 self._state.params.get(p.P_MQTT_PORT),
                 *self._desired_mqtt(),
             )

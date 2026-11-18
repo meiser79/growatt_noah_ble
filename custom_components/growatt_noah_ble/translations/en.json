@@ -57,19 +57,40 @@
   "entity": {
     "sensor": {
       "mqtt_server": {
-        "name": "Active MQTT server"
+        "name": "MQTT server"
       },
-      "mqtt_server_configured": {
-        "name": "Stored MQTT server"
+      "mqtt_host": {
+        "name": "MQTT server (0x11)"
       },
-      "mqtt_port_configured": {
-        "name": "Stored MQTT port"
+      "mqtt_port": {
+        "name": "MQTT port"
       },
       "firmware": {
         "name": "Firmware"
       },
       "mac": {
         "name": "MAC address"
+      },
+      "wifi_signal": {
+        "name": "WLAN signal"
+      },
+      "ip_address": {
+        "name": "IP address"
+      },
+      "device_type": {
+        "name": "Device type"
+      },
+      "model_id": {
+        "name": "Model ID"
+      },
+      "hw_version": {
+        "name": "Hardware version"
+      },
+      "sdk_version": {
+        "name": "SDK version"
+      },
+      "auth_key": {
+        "name": "Bluetooth key"
       },
       "last_mqtt_fix": {
         "name": "MQTT last restored"

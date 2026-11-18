@@ -77,7 +77,7 @@ class NoahBle:
             if not frames:
                 continue
             proto, _, func, data = p.parse_frame(frames[0])
-            print(p.describe(proto, func, data))
+            print(p.describe(proto, func, data, redact=False))
             return data
 
     async def set_params(self, params):
@@ -108,9 +108,11 @@ async def run_client(args):
             params.append((p.P_MQTT_PORT, str(args.port)))
         if params:
             await noah.set_params(params)
-        await noah.query([p.P_SERIAL, p.P_MAC, p.P_PARAM_13, p.P_FIRMWARE])
-        await noah.query([p.P_MQTT_HOST_ACTIVE, p.P_MQTT_HOST, p.P_MQTT_PORT])
-        await noah.query([p.P_WIFI_STATUS, p.P_CONNECTION_STATE])
+        await noah.query([p.P_SERIAL, p.P_MAC, p.P_DEVICE_TYPE, p.P_FIRMWARE])
+        await noah.query([p.P_MODEL_ID, p.P_HW_VERSION, p.P_SDK_VERSION])
+        await noah.query([p.P_MQTT_URL, p.P_MQTT_HOST, p.P_MQTT_PORT])
+        await noah.query([p.P_WIFI_STATUS, p.P_CONNECTION_STATE, p.P_WIFI_SIGNAL])
+        await noah.query([p.P_DHCP_LEASE_0, p.P_DHCP_LEASE_1, p.P_AUTH_KEY])
         if args.restart:
             await noah.client.write_gatt_char(p.CHAR_UUID, p.restart_request(), response=True)
             print("restart sent")
@@ -138,7 +140,7 @@ def main():
             t0 = t0 or ts
             try:
                 proto, _, func, data = p.parse_frame(frame)
-                print(f"{(ts - t0) / 1e6:8.3f}  {p.describe(proto, func, data)}")
+                print(f"{(ts - t0) / 1e6:8.3f}  {p.describe(proto, func, data, redact=False)}")
             except (p.ProtocolError, struct.error) as e:
                 print(f"{(ts - t0) / 1e6:8.3f}  <{e}> {frame.hex()}", file=sys.stderr)
     elif args.cmd == "scan":

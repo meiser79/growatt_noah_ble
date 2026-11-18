@@ -8,7 +8,7 @@ The integration **only handles configuration**. It does not process the measurem
 
 ## Features
 
-- **Enforce the MQTT server:** If the active MQTT server or port differs from the configured value, both are written again immediately.
+- **Enforce the MQTT server:** If the MQTT server or port differs from the configured value, both are written again immediately.
 - **Reconnect WLAN:** If the NOAH reports no network connection on two polls in a row, the WLAN name and password are sent again and the datalogger re-establishes the connection. The status is checked again 30 seconds later.
 - **Poll on Bluetooth advertisement:** If the NOAH is unreachable, the integration polls as soon as it advertises again instead of waiting for the next interval. After a failed session it waits 5 minutes before the next attempt; if the connection could not be established at all (e.g. Bluetooth adapter still starting after a reboot), only 1 minute.
 - **Short connections:** Each poll takes about 4 seconds; the connection is closed afterwards.
@@ -53,16 +53,21 @@ During setup the integration connects to the NOAH once as a test. The options ca
 
 | Entity | Type | Description |
 |---|---|---|
-| Active MQTT server | Sensor | Server the NOAH is currently using |
-| Stored MQTT server | Sensor (diagnostic) | Server stored in the NOAH |
-| Stored MQTT port | Sensor (diagnostic) | Port stored in the NOAH |
+| MQTT server | Sensor | Server the NOAH uses (`0x13`) |
+| MQTT server (0x11) | Sensor (diagnostic) | The same setting read via `0x11`; always equal to "MQTT server" |
+| MQTT port | Sensor (diagnostic) | Port the NOAH uses |
 | Firmware | Sensor (diagnostic) | Datalogger firmware |
-| MAC address | Sensor (diagnostic, disabled) | WLAN MAC of the datalogger |
+| MAC address | Sensor (diagnostic, disabled) | WLAN MAC of the datalogger (the Bluetooth MAC is this + 2) |
+| WLAN signal | Sensor (diagnostic) | WLAN signal strength in dBm |
+| IP address | Sensor (diagnostic) | IP address from the DHCP lease (`0x8B`); the raw lease string is an attribute |
+| Device type | Sensor (diagnostic) | Product from `0x0D`, e.g. NOAH 2000 (`61`) |
+| Model ID, Hardware version, SDK version | Sensors (diagnostic, disabled) | Further version information |
+| Bluetooth key | Sensor (diagnostic, disabled) | Key stored in `0x36`, see below |
 | Last Bluetooth contact | Sensor (diagnostic) | Time of the last successful poll |
 | MQTT last restored | Sensor (diagnostic) | When the integration last corrected the MQTT server |
 | WLAN last reconnected | Sensor (diagnostic) | When the WLAN credentials were last sent |
 | Network | Binary sensor | On when the NOAH reports WLAN and server connection |
-| Wrong MQTT server | Binary sensor (problem) | On when the active server differs from the configured one |
+| Wrong MQTT server | Binary sensor (problem) | On when the NOAH's server or port differs from the configured one |
 | Bluetooth reachable | Binary sensor (diagnostic) | Whether the last Bluetooth poll succeeded |
 | Bluetooth polling | Switch | Off = Home Assistant no longer connects to the NOAH |
 | Send MQTT settings | Button | Writes the MQTT server and port immediately |
@@ -73,6 +78,8 @@ During setup the integration connects to the NOAH once as a test. The options ca
 If the NOAH is unreachable, the sensors keep their last values. "Bluetooth reachable" and "Last Bluetooth contact" show whether the data is current.
 
 "Network" is on when `0x37 = 0` and `0x3C` is one of `16`, `3` or `4`. This is the same success check the ShinePhone app uses during network setup.
+
+"Bluetooth key" shows the key the datalogger stores in `0x36`. On a NOAH set up with the ShinePhone app this is a 32-character token of the Growatt account, which reportedly opens the Bluetooth interface of every device of that account. The datalogger accepts the common key in addition, so the integration does not need it. The entity is disabled by default; if you enable it, the token ends up in the recorder history and in backups.
 
 ### Example automation
 
@@ -109,7 +116,7 @@ logger:
     custom_components.growatt_noah_ble: debug
 ```
 
-The log then shows every connection ("Connecting to NOAH …" / "Disconnected from NOAH …"), every received Bluetooth notification as raw `rx …`, and every command decrypted in plain text. When WLAN credentials are sent, the WLAN password appears in plain text in the log.
+The log then shows every connection ("Connecting to NOAH …" / "Disconnected from NOAH …"), every received Bluetooth notification as raw `rx …`, and every command decrypted in plain text. The WLAN password and a Bluetooth key other than the common key are replaced by `<n bytes redacted>`. The command line tool shows them in plain text.
 
 ## Command line tool
 
@@ -174,18 +181,26 @@ Right after connecting, the NOAH sends the notification `00 01 02 … 0e` once o
 | ID | Meaning |
 |---|---|
 | `0x08` | Serial number |
+| `0x0D` | Device type (`61` = NOAH 2000, `66` GroPlug, `72` NEXA 2000, `73` AURA/NODE 5000, `83` VETA 2200) |
 | `0x10` | MAC address |
 | `0x11` | MQTT server |
 | `0x12` | MQTT port |
-| `0x13` | Active MQTT server (read only) |
+| `0x13` | MQTT server, the same setting as `0x11`: writing one changes what both read back |
+| `0x14` | Model ID |
 | `0x15` | Firmware |
+| `0x16` | Hardware version |
 | `0x20` | Restart (`"1"`) |
-| `0x36` | Authentication key |
+| `0x36` | Authentication key (write); stored key (read) |
 | `0x37` | WLAN status (`0` = connected) |
 | `0x38` | WLAN name |
 | `0x39` | WLAN password |
 | `0x3C` | Connection state (`16`, `3`, `4` = ok) |
+| `0x3D` | ESP-IDF version |
 | `0x4B` | WLAN scan (binary) |
+| `0x4C` | WLAN signal (dBm) |
+| `0x8B`, `0x8C` | DHCP lease |
+
+The ShinePhone app writes the MQTT server (`0x11`) and port (`0x12`) in separate commands and never writes `0x13`; `0x13` follows `0x11` immediately.
 
 **Modbus registers** (function `0x17`, Modbus address `0x01`), as used by the app during network setup:
 

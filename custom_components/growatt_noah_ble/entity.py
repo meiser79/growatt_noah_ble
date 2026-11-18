@@ -28,10 +28,11 @@ class NoahEntity(CoordinatorEntity[NoahCoordinator]):
         self._attr_device_info = DeviceInfo(
             connections={(CONNECTION_BLUETOOTH, coordinator.address)},
             manufacturer="Growatt",
-            model="NOAH 2000",
+            model=p.model_name(params.get(p.P_DEVICE_TYPE)),
             name=coordinator.config_entry.title,
             serial_number=params.get(p.P_SERIAL),
             sw_version=params.get(p.P_FIRMWARE),
+            hw_version=params.get(p.P_HW_VERSION),
         )
 
     @property
