@@ -5,7 +5,9 @@ The protocol itself lives in custom_components/growatt_noah_ble/protocol.py.
 """
 import argparse
 import asyncio
+from datetime import datetime
 import os
+import re
 import struct
 import sys
 
@@ -89,6 +91,12 @@ class NoahBle:
         return p.parse_query_reply(await self.request(p.query_request(ids)))[1]
 
 
+def format_value(value):
+    if all(0x20 <= b < 0x7F for b in value):
+        return value.decode()
+    return f"hex:{value.hex()}"
+
+
 async def scan():
     from bleak import BleakScanner
 
@@ -119,6 +127,52 @@ async def run_client(args):
             print("restart sent")
 
 
+async def dump(args):
+    """Read every parameter id and write them to a text file; the space is 0..145 according to heliobind."""
+    values, missing, failed = {}, [], []
+    async with NoahBle(args.address, args.verbose) as noah:
+        ids = list(range(args.last + 1))
+        for start in range(0, len(ids), args.batch):
+            batch = ids[start : start + args.batch]
+            try:
+                status, reply = p.parse_query_reply(await noah.request(p.query_request(batch)))
+            except (TimeoutError, p.ProtocolError) as e:
+                print(f"query {batch} failed: {e!r}", file=sys.stderr)
+                failed += batch
+                continue
+            if status != 0:
+                print(f"query {batch} returned status {status}", file=sys.stderr)
+            values.update(reply)
+            missing += [i for i in batch if i not in reply]
+
+    serial = values.get(p.P_SERIAL, b"").decode(errors="replace") or args.address.replace(":", "")
+    model = p.model_name(values.get(p.P_DEVICE_TYPE, b"").decode(errors="replace"))
+    path = args.output or f"{re.sub(r'[^A-Za-z0-9]+', '-', model)}_{serial}_{datetime.now():%Y%m%d-%H%M%S}.txt"
+    with open(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
+        f.write(f"# {model} {args.address}, serial {serial}, read {datetime.now().isoformat(timespec='seconds')}\n")
+        f.write(f"# ids 0..{args.last}; contains the WLAN password and the Bluetooth key in plain text\n")
+        for i in sorted(values):
+            f.write(f"{i:3}  0x{i:02X}  {p.PARAM_NAMES.get(i, ''):18}  {format_value(values[i])}\n")
+        f.write(f"# no value: {', '.join(map(str, missing)) or '-'}\n")
+        f.write(f"# no reply: {', '.join(map(str, failed)) or '-'}\n")
+    print(f"{len(values)} values written to {path} (contains the WLAN password)")
+
+
+async def modbus(args):
+    """Read Modbus registers via the 0x17 passthrough, to find out what the unit behind the datalogger answers."""
+    function = p.MODBUS_READ_INPUT if args.input else p.MODBUS_READ_HOLDING
+    async with NoahBle(args.address, args.verbose) as noah:
+        for start in range(args.start, args.start + args.count, args.batch):
+            count = min(args.batch, args.start + args.count - start)
+            try:
+                regs = p.parse_modbus_read_reply(await noah.request(p.modbus_read_request(function, start, count)))
+            except (TimeoutError, p.ProtocolError) as e:
+                print(f"{start}..{start + count - 1}: {e}")
+                continue
+            for i, r in enumerate(regs):
+                print(f"{start + i:5}  0x{r:04x}  {r:5}  {bytes([r >> 8, r & 0xFF])!r}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -133,6 +187,19 @@ def main():
     a.add_argument("--password")
     a.add_argument("--restart", action="store_true", help="restart the datalogger at the end")
     a.add_argument("-v", "--verbose", action="store_true", help="print raw frames and notifications")
+    a = sub.add_parser("dump", help="read all parameters and write them to a text file")
+    a.add_argument("address")
+    a.add_argument("-o", "--output", help="file name (default: <device type>_<serial>_<time>.txt)")
+    a.add_argument("--last", type=int, default=145, help="highest parameter id to read (default: 145)")
+    a.add_argument("--batch", type=int, default=4, help="parameters per query (default: 4, like the app)")
+    a.add_argument("-v", "--verbose", action="store_true", help="print raw frames and notifications")
+    a = sub.add_parser("modbus", help="read Modbus registers of the unit behind the datalogger (0x17 passthrough)")
+    a.add_argument("address")
+    a.add_argument("start", type=int)
+    a.add_argument("count", type=int, nargs="?", default=1)
+    a.add_argument("--input", action="store_true", help="input registers (function 0x04) instead of holding (0x03)")
+    a.add_argument("--batch", type=int, default=1, help="registers per request (default: 1)")
+    a.add_argument("-v", "--verbose", action="store_true", help="print raw frames and notifications")
     args = ap.parse_args()
 
     if args.cmd == "decode":
@@ -146,6 +213,10 @@ def main():
                 print(f"{(ts - t0) / 1e6:8.3f}  <{e}> {frame.hex()}", file=sys.stderr)
     elif args.cmd == "scan":
         asyncio.run(scan())
+    elif args.cmd == "dump":
+        asyncio.run(dump(args))
+    elif args.cmd == "modbus":
+        asyncio.run(modbus(args))
     else:
         asyncio.run(run_client(args))
 

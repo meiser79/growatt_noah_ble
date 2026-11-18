@@ -147,6 +147,15 @@ python3 growatt_ble.py config <MAC> --host mqtt.example.com --port 8883 -v
 # Set WLAN
 python3 growatt_ble.py config <MAC> --ssid "MyWLAN" --password "secret"
 
+# Read all parameters (ids 0..145) into <device type>_<serial>_<time>.txt, e.g. NOAH-2000_0PVPC0ED35PT00RU_20261118-110000.txt
+# The file contains the WLAN password and the Bluetooth key in plain text; it is created with mode 600.
+python3 growatt_ble.py dump <MAC>
+
+# Read Modbus registers of the unit behind the datalogger (0x17 passthrough):
+# holding registers 64..70, then input registers 0..108 in groups of 8
+python3 growatt_ble.py modbus <MAC> 64 7 --batch 7
+python3 growatt_ble.py modbus <MAC> 0 109 --input --batch 8
+
 # Decrypt an Android btsnoop capture
 python3 growatt_ble.py decode btsnoop_hci.log
 ```
