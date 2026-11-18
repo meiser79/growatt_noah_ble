@@ -35,6 +35,16 @@ APP_SERIAL = b"0000000000"
 
 SERVICE_UUID = "000000ff-0000-1000-8000-00805f9b34fb"
 CHAR_UUID = "0000ff01-0000-1000-8000-00805f9b34fb"
+# The manufacturer data is ASCII "G:<device type>#<serial prefix>#..", e.g. "G:61#0PVP#0#0" for a NOAH 2000.
+# The NOAH also sends it as "g:..", meaning unknown. Read as a little endian company id, "G:" is
+# 0x3A47 and "g:" 0x3A67. Neither is enough on its own: the service UUID 0x00FF comes from Espressif's GATT
+# example and is advertised by unrelated ESP32 devices too, and other Growatt devices send "g:" without it.
+MANUFACTURER_IDS = (0x3A47, 0x3A67)
+
+
+def is_growatt_ble(service_uuids, manufacturer_data) -> bool:
+    """Whether an advertisement comes from a datalogger speaking this protocol."""
+    return SERVICE_UUID in service_uuids and any(i in manufacturer_data for i in MANUFACTURER_IDS)
 
 PROTO_APP = 6
 PROTO_DEVICE = 7

@@ -70,7 +70,7 @@ def _clean(user_input: dict[str, Any]) -> dict[str, Any]:
 
 
 def _looks_like_noah(info: BluetoothServiceInfoBleak) -> bool:
-    return p.SERVICE_UUID in info.service_uuids
+    return p.is_growatt_ble(info.service_uuids, info.manufacturer_data)
 
 
 class NoahConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -109,7 +109,7 @@ class NoahConfigFlow(ConfigFlow, domain=DOMAIN):
             for info in async_discovered_service_info(self.hass, connectable=True)
             if _looks_like_noah(info) and format_mac(info.address) not in configured
         }
-        # the NOAH might not advertise its service UUID, so a MAC can always be typed in
+        # in case the NOAH is not recognised, a MAC can always be typed in
         schema = vol.Schema(
             {vol.Required(CONF_ADDRESS): vol.In(self._discovered) if self._discovered else str}
         )

@@ -93,7 +93,7 @@ async def scan():
     from bleak import BleakScanner
 
     for dev, adv in (await BleakScanner.discover(timeout=8, return_adv=True)).values():
-        mark = "*" if p.SERVICE_UUID in adv.service_uuids else " "
+        mark = "*" if p.is_growatt_ble(adv.service_uuids, adv.manufacturer_data) else " "
         print(f"{mark} {dev.address}  rssi={adv.rssi:4}  {dev.name}")
 
 
@@ -121,7 +121,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("decode", help="decode a btsnoop_hci.log")
     a.add_argument("file")
-    sub.add_parser("scan", help="list BLE devices (* = advertises the NOAH service)")
+    sub.add_parser("scan", help="list BLE devices (* = Growatt datalogger)")
     a = sub.add_parser("config", help="authenticate, optionally set wifi/mqtt, then read back settings")
     a.add_argument("address")
     a.add_argument("--host", help="MQTT server host")

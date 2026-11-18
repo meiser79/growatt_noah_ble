@@ -35,7 +35,7 @@ The integration **only handles configuration**. It does not process the measurem
 ## Setup
 
 1. *Settings → Devices & services → Add integration → Growatt NOAH (Bluetooth)*.
-   If the NOAH is detected, it also shows up directly as a discovered device.
+   If the NOAH is detected, it also shows up directly as a discovered device. It is recognised by the service UUID `0x00FF` together with the manufacturer data `G:61#…` or `g:61#…` (company ID `0x3A47` or `0x3A67`). Neither is enough on its own: unrelated ESP32 devices advertise `0x00FF` too, and other Growatt devices send `g:` without it. Other Growatt dataloggers in range (NEXA, GroPlug, a neighbour's NOAH) can still show up; check the MAC before adding one.
 2. Select the NOAH or enter its Bluetooth MAC address (see *Settings → Bluetooth → Advertisement monitor*).
 3. Enter the settings:
 
@@ -116,7 +116,7 @@ The log then shows every connection ("Connecting to NOAH …" / "Disconnected fr
 `growatt_ble.py` uses the same protocol module and runs on any Linux machine with Bluetooth (`pip install bleak`):
 
 ```bash
-# Scan for Bluetooth devices (* = advertises the NOAH service)
+# Scan for Bluetooth devices (* = Growatt datalogger)
 python3 growatt_ble.py scan
 
 # Read settings
@@ -165,7 +165,7 @@ The data always starts with the 10-character datalogger serial number (the app s
 | `0x19` query | `count u16, id u16*` | `serial, count u16, status u8, {id u16, len u16, value}*` |
 | `0x17` Modbus | `len u16, Modbus RTU frame incl. CRC` | same |
 
-**Authentication:** The first command of every connection is `0x18` with parameter `0x36 = growatt_iot_device_common_key_01`.
+**Authentication:** The first command of every connection is `0x18` with parameter `0x36 = growatt_iot_device_common_key_01`. The datalogger also stores a device or account key in `0x36`, but it accepts the common key in addition to that one, so the common key works on devices set up with the ShinePhone app too.
 
 Right after connecting, the NOAH sends the notification `00 01 02 … 0e` once or twice. It is not a frame and is skipped.
 
