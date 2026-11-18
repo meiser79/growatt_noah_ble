@@ -61,9 +61,7 @@ SENSORS = [
     NoahSensorDescription(
         key="mqtt_host", value=_param(p.P_MQTT_HOST), entity_category=EntityCategory.DIAGNOSTIC
     ),
-    NoahSensorDescription(
-        key="mqtt_port", value=_param(p.P_MQTT_PORT), entity_category=EntityCategory.DIAGNOSTIC
-    ),
+    NoahSensorDescription(key="mqtt_port", value=_param(p.P_MQTT_PORT)),
     NoahSensorDescription(key="firmware", value=_param(p.P_FIRMWARE), entity_category=EntityCategory.DIAGNOSTIC),
     NoahSensorDescription(
         key="mac",

@@ -55,7 +55,7 @@ During setup the integration connects to the NOAH once as a test. The options ca
 |---|---|---|
 | MQTT server | Sensor | Server the NOAH uses (`0x13`) |
 | MQTT server (0x11) | Sensor (diagnostic) | The same setting read via `0x11`; always equal to "MQTT server" |
-| MQTT port | Sensor (diagnostic) | Port the NOAH uses |
+| MQTT port | Sensor | Port the NOAH uses |
 | Firmware | Sensor (diagnostic) | Datalogger firmware |
 | MAC address | Sensor (diagnostic, disabled) | WLAN MAC of the datalogger (the Bluetooth MAC is this + 2) |
 | WLAN signal | Sensor (diagnostic) | WLAN signal strength in dBm |
