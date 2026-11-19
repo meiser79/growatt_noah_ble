@@ -35,7 +35,7 @@ The integration **only handles configuration**. It does not process the measurem
 ## Setup
 
 1. *Settings → Devices & services → Add integration → Growatt NOAH (Bluetooth)*.
-   If the NOAH is detected, it also shows up directly as a discovered device. It is recognised by the service UUID `0x00FF` together with the manufacturer data `G:61#…` or `g:61#…` (company ID `0x3A47` or `0x3A67`). Neither is enough on its own: unrelated ESP32 devices advertise `0x00FF` too, and other Growatt devices send `g:` without it. Other Growatt dataloggers in range (NEXA, GroPlug, a neighbour's NOAH) can still show up; check the MAC before adding one.
+   If the NOAH is detected, it also shows up directly as a discovered device. It is recognised by the service UUID `0x00FF` together with the manufacturer data `G:61#…` or `g:61#…` (company ID `0x3A47` or `0x3A67`). The case of the letter is a state: `G` while the key stored in `0x36` differs from the common key, usually because the ShinePhone app bound the NOAH to an account, and `g` while it holds the common key. Neither condition is enough on its own: unrelated ESP32 devices advertise `0x00FF` too, and other Growatt devices send `g:` without it. Other Growatt dataloggers in range (NEXA, GroPlug, a neighbour's NOAH) can still show up; check the MAC before adding one.
 2. Select the NOAH or enter its Bluetooth MAC address (see *Settings → Bluetooth → Advertisement monitor*).
 3. Enter the settings:
 
@@ -86,6 +86,8 @@ If the NOAH is unreachable, the sensors keep their last values. "Bluetooth reach
 "WLAN connection" is on when `0x37 = 0`, "Server connection" when `0x3C` is one of `16`, `3` or `4`. Together they are the success check the ShinePhone app uses during network setup.
 
 "Bluetooth key" shows the key the datalogger stores in `0x36`. On a NOAH set up with the ShinePhone app this is a 32-character token of the Growatt account, which reportedly opens the Bluetooth interface of every device of that account. The datalogger accepts the common key in addition, so the integration does not need it. The entity is disabled by default; if you enable it, the token ends up in the recorder history and in backups.
+
+To remove the token from the NOAH, hold its IoT button for 3 to 10 seconds: the datalogger writes the common key back into `0x36` and advertises `g:` again. This is not a factory reset and keeps the WLAN and server settings, but the datalogger restarts its network connection and is offline for about 11 seconds.
 
 ### Example automation
 
