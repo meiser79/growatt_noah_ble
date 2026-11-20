@@ -135,17 +135,16 @@ class NoahCoordinator(DataUpdateCoordinator[NoahData]):
     def _update_device(self) -> None:
         """The entities set the device info before anything was read, so fill it in now."""
         registry = dr.async_get(self.hass)
-        device = registry.async_get_device(connections={(dr.CONNECTION_BLUETOOTH, self.address)})
-        if device is None:
-            return
         params = self._state.params
-        registry.async_update_device(
-            device.id,
-            model=p.model_name(params.get(p.P_DEVICE_TYPE)),
-            serial_number=params.get(p.P_SERIAL),
-            sw_version=params.get(p.P_FIRMWARE),
-            hw_version=params.get(p.P_HW_VERSION),
-        )
+        # each config entry has exactly one device, the NOAH
+        for device in dr.async_entries_for_config_entry(registry, self.config_entry.entry_id):
+            registry.async_update_device(
+                device.id,
+                model=p.model_name(params.get(p.P_DEVICE_TYPE)),
+                serial_number=params.get(p.P_SERIAL),
+                sw_version=params.get(p.P_FIRMWARE),
+                hw_version=params.get(p.P_HW_VERSION),
+            )
 
     async def _poll(self, client: NoahClient) -> None:
         if p.P_SERIAL not in self._state.params:
